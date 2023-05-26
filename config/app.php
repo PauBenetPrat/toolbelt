@@ -70,4 +70,6 @@ return [
         App\Providers\AppServiceProvider::class,
     ],
 
+    'bitbucket_api_bearer' => env('BITBUCKET_API_BEARER')
+
 ];
