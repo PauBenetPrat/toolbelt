@@ -2,10 +2,8 @@
 
 namespace App\Commands;
 
-use Illuminate\Console\Scheduling\Schedule;
-use LaravelZero\Framework\Commands\Command;
 use Illuminate\Support\Facades\Http;
-use function Symfony\Component\String\b;
+use LaravelZero\Framework\Commands\Command;
 
 class GitCompareCommand extends Command
 {
@@ -15,9 +13,10 @@ class GitCompareCommand extends Command
         {--no-fetch : Don\'t fetch origins}
         {release-branch-or-tag=dev}
         {main-branch=revo}
-        ';
+    ';
 
-    protected $description = 'Retrieve a list of pull requests between two branches in a Git repository and optionally retrieve additional information from the Bitbucket API and its linear links.';
+    protected $description = 'Retrieve a list of pull requests between two branches in a Git repository and optionally retrieve additional information from the Bitbucket API, including its linear links.';
+
     protected ?string $bearer = null;
     protected string $username;
     protected string $repository;
@@ -47,7 +46,7 @@ class GitCompareCommand extends Command
 
     protected function setUsernameAndRepositoryFromGit()
     {
-        // Extract username and repository from git remote URL
+        // Extract username and repository from the git remote URL
         $remoteUrlOutput = exec('git remote get-url origin');
         $regex = '/bitbucket.org[:\/](.*)\/(.*).git/';
 
@@ -55,7 +54,7 @@ class GitCompareCommand extends Command
             $this->username = $matches[1];
             $this->repository = $matches[2];
         } else {
-            $this->error("ERROR: Failed to extract username and repository from remote URL: $remoteUrlOutput");
+            $this->error("Failed to extract username and repository from the remote URL: $remoteUrlOutput");
             exit(1);
         }
     }
@@ -66,17 +65,18 @@ class GitCompareCommand extends Command
             return null;
         }
 
-        if ($bearer = config('app.bitbucket_api_bearer')) {
+        if ($bearer = env('BITBUCKET_API_TOKEN')) {
             return $bearer;
         }
 
-        $this->alert("For security concerns consider setting bearer to you .env");
+        $this->alert("Consider setting your BITBUCKET_API_TOKEN in the .env file.");
 
-        $bearer = $this->ask('Api Bearer');
-        $this->info("echo BITBUCKET_API_BEARER=\"{$bearer}\" >> .env");
+        $bearer = $this->ask('Enter your Bitbucket API token to get linears output or press enter to continue');
 
-        if (!$bearer) {
-            $this->warn("WARNING: Bearer not set. Only PR links will be printed, no PR information will be fetched");
+        if ($bearer) {
+            $this->comment("RUN: echo BITBUCKET_API_TOKEN=\"{$bearer}\" >> .env");
+        } else {
+            $this->warn("Bearer not set. Only PR links will be printed; no PR information will be fetched.");
         }
         return $bearer;
     }
@@ -92,64 +92,60 @@ class GitCompareCommand extends Command
         return ltrim($matches[0], '#');
     }
 
-    protected function getPrInfo(
-        $bearer,
-        string $prNumber,
-    ) {
-        // Call Bitbucket API to retrieve pull request details
-        $response = Http::withHeaders(['Authorization' => "Bearer $bearer"])
-            ->get("https://api.bitbucket.org/2.0/repositories/{$this->username}/{$this->repository}/pullrequests/{$prNumber}")
-            ->json();
-
-        if (isset($response['error'])) {
-            $this->error("ERROR: Bitbucket api error - {$response['error']['message']}");
-            exit(1);
-        }
-
-        $link = preg_match('/(https:\/\/linear\.app\/revo\/issue\/REV-[0-9]+)/', $response['description'],
-            $matches) ? $matches[1] : null;
-        return [$link, $response['title']];
-    }
-
     function getBitbucketLink(string $prNumber): string
     {
         return "https://bitbucket.org/{$this->username}/{$this->repository}/pull-requests/{$prNumber}";
     }
 
-    protected function preFetch(
-        string $mainBranch,
-        string $releaseBranch
-    ): void {
+    protected function preFetch(string $mainBranch, string $releaseBranch): void
+    {
         if ($this->option('no-fetch')) {
             return;
         }
 
-        $this->info("Getting \`$releaseBranch\` to \`$mainBranch\` diff from https://bitbucket.org:{$this->username}/{$this->repository}.git");
+        $this->info("Getting `{$releaseBranch}` to `{$mainBranch}` diff from https://bitbucket.org:{$this->username}/{$this->repository}.git");
         exec("git fetch origin $mainBranch");
         exec("git fetch origin $releaseBranch");
     }
 
-    protected function getMergeCommits(bool|array|string|null $mainBranch, bool|array|string|null $releaseBranch): array
+    protected function getMergeCommits(string $mainBranch, string $releaseBranch): array
     {
         exec("git log {$mainBranch}..{$releaseBranch} --merges --pretty=format:\"%H\"", $output);
         return $output;
     }
 
-    function getLink(string $prNumber): mixed
+    protected function getLink(string $prNumber): ?string
     {
         if (!$this->bearer) {
             $link = $this->getBitbucketLink($prNumber);
             $this->info("BITBUCKET: $link");
-        } else {
-            [$link, $prTitle] = $this->getPrInfo($this->bearer, $prNumber);
-
-            if (!empty($link)) {
-                $this->info("LINEAR: $link");
-            } else {
-                $link = "https://bitbucket.org/{$this->username}/{$this->repository}/pull-requests/{$prNumber}";
-                $this->warn("WARNING: No Linear found at {$link} {$prTitle}");
-            }
+            return $link;
         }
-        return $link;
+
+        [$linearLink, $prTitle] = $this->getPrInfo($this->bearer, $prNumber);
+        if (!$linearLink) {
+            $link = "https://bitbucket.org/{$this->username}/{$this->repository}/pull-requests/{$prNumber}";
+            $this->warn("No Linear found at {$link} - {$prTitle}");
+            return $link;
+        }
+
+        $this->info("LINEAR: {$linearLink}");
+        return $linearLink;
+    }
+
+    protected function getPrInfo(string $bearer, string $prNumber): array
+    {
+        // Call the Bitbucket API to retrieve pull request details
+        $response = Http::withHeaders(['Authorization' => "Bearer $bearer"])
+            ->get("https://api.bitbucket.org/2.0/repositories/{$this->username}/{$this->repository}/pullrequests/{$prNumber}")
+            ->json();
+
+        if (isset($response['error'])) {
+            $this->error("Bitbucket API error - {$response['error']['message']}");
+            exit(1);
+        }
+
+        $link = preg_match('/(https:\/\/linear\.app\/revo\/issue\/REV-[0-9]+)/', $response['description'], $matches) ? $matches[1] : null;
+        return [$link, $response['title']];
     }
 }
