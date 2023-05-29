@@ -31,11 +31,13 @@ class BitbucketClient
      */
     public function getPRInfo(string $prNumber): array
     {
-        $response = Http::withHeaders(['Authorization' => "Bearer {$this->bearer()}"])
+        $response = Http::withHeaders(['Authorization' => "Bearer {$this->bearer}"])
             ->get("https://api.bitbucket.org/2.0/repositories/{$this->gitClient->username}/{$this->gitClient->repository}/pullrequests/{$prNumber}")
             ->json();
 
-        throw_if(isset($response['error']), new BitbucketClientException($response['error']['message']));
+        if (isset($response['error'])) {
+            throw new BitbucketClientException($response['error']['message']);
+        }
 
         $link = preg_match('/(https:\/\/linear\.app\/revo\/issue\/REV-[0-9]+)/', $response['description'], $matches) ? $matches[1] : null;
         return [$link, $response['title']];
