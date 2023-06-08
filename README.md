@@ -1,40 +1,44 @@
-<a href="https://supportukrainenow.org/"><img src="https://raw.githubusercontent.com/vshymanskyy/StandWithUkraine/main/banner-direct.svg" width="100%"></a>
+# Toolbelt
 
-------
+Toolbelt is a standalone application built with Laravel Zero that allows you to compare branches, tags, and commits in a Git repository. The application can be compiled and used without any external dependencies, making it convenient to integrate into your project.
 
-<p align="center">
-    <img title="Laravel Zero" height="100" src="https://raw.githubusercontent.com/laravel-zero/docs/master/images/logo/laravel-zero-readme.png" />
-</p>
+## Installation
 
-<p align="center">
-  <a href="https://github.com/laravel-zero/framework/actions"><img src="https://github.com/laravel-zero/laravel-zero/actions/workflows/tests.yml/badge.svg" alt="Build Status"></img></a>
-  <a href="https://packagist.org/packages/laravel-zero/framework"><img src="https://img.shields.io/packagist/dt/laravel-zero/framework.svg" alt="Total Downloads"></a>
-  <a href="https://packagist.org/packages/laravel-zero/framework"><img src="https://img.shields.io/packagist/v/laravel-zero/framework.svg?label=stable" alt="Latest Stable Version"></a>
-  <a href="https://packagist.org/packages/laravel-zero/framework"><img src="https://img.shields.io/packagist/l/laravel-zero/framework.svg" alt="License"></a>
-</p>
+To use Toolbelt, follow these steps:
 
-<h4> <center>This is a <bold>community project</bold> and not an official Laravel one </center></h4>
+1. Clone the repository:
 
-Laravel Zero was created by [Nuno Maduro](https://github.com/nunomaduro) and [Owen Voke](https://github.com/owenvoke), and is a micro-framework that provides an elegant starting point for your console application. It is an **unofficial** and customized version of Laravel optimized for building command-line applications.
+   ```shell
+   git clone https://github.com/PauBenetPrat/toolbelt.git
 
-- Built on top of the [Laravel](https://laravel.com) components.
-- Optional installation of Laravel [Eloquent](https://laravel-zero.com/docs/database/), Laravel [Logging](https://laravel-zero.com/docs/logging/) and many others.
-- Supports interactive [menus](https://laravel-zero.com/docs/build-interactive-menus/) and [desktop notifications](https://laravel-zero.com/docs/send-desktop-notifications/) on Linux, Windows & MacOS.
-- Ships with a [Scheduler](https://laravel-zero.com/docs/task-scheduling/) and  a [Standalone Compiler](https://laravel-zero.com/docs/build-a-standalone-application/).
-- Integration with [Collision](https://github.com/nunomaduro/collision) - Beautiful error reporting
+2. Give execute permissions to the compiled file:
+    ```shell 
+    git clone https://github.com/PauBenetPrat/toolbelt.git
 
-------
+3. Give execute permissions to the compiled file:
+    ```shell
+    chmod +x builds/toolbelt
 
-## Documentation
+4. Copy build toolbelt file to any project you need it
+5. Run toolbelt from the project folder. It compares branches "dev" and "revo" by default:
+    ```shell
+    ./toolbelt git-compare
+    ```
+    
+6. Optional flags. You can pass different branches, tags, or commits as arguments:
 
-For full documentation, visit [laravel-zero.com](https://laravel-zero.com/).
+    ```shell
+    ./toolbelt git-compare dev master
+    ```
 
-## Support the development
-**Do you like this project? Support it by donating**
+   - Use the -S or --skip-api-calls flag if you don't have a Bitbucket API token or want to skip linear history checks. 
+   - Use the -O flag to open links in your default browser (it's recommended to have dual monitors for this).
+   - Use the --no-fetch flag to skip the initial git fetch origin command.
 
-- PayPal: [Donate](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=66BYDWAT92N6L)
-- Patreon: [Donate](https://www.patreon.com/nunomaduro)
+7. You can pass your bitbucket api token (retrieved from https://bitbucket.org/<workspace>/<project>/admin/access-tokens) dynamically or set it to each project .env at BITBUCKET_API_TOKEN variable.
 
-## License
+# Contribution
+Contributions to Toolbelt are welcome! If you find any issues or have suggestions for improvements, please feel free to open an issue or submit a pull request.
 
-Laravel Zero is an open-source software licensed under the MIT license.
+# License
+Toolbelt is open-source software licensed under the MIT license.
