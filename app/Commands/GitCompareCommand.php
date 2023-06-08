@@ -88,7 +88,7 @@ class GitCompareCommand extends Command
 
     protected function getLink(string $prNumber): ?string
     {
-        if (!$this->bitbucketClient->bearer) {
+        if ($this->option('skip-api-calls') || !$this->bitbucketClient->bearer) {
             $link = $this->bitbucketClient->prLink($prNumber);
             $this->info("BITBUCKET: $link");
             return $link;
