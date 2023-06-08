@@ -15,6 +15,8 @@ class GitCompareCommand extends Command
         {--S|skip-api-calls : Skip API calls and only print the PR links}
         {--O|open-on-browser : Open all links in the browser}
         {--no-fetch : Don\'t fetch origins}
+        {--limit= : Limit the number of results}
+        {--skip= : Skip a certain number of results}
         {release-branch-or-tag=dev}
         {main-branch=revo}
     ';
@@ -40,7 +42,16 @@ class GitCompareCommand extends Command
 
         $this->preFetchBranches($mainBranch, $releaseBranch);
 
-        collect($this->gitClient->mergeCommitsBetween($mainBranch, $releaseBranch))->each(function (string $mergeCommit) {
+        $mergeCommits = $this->gitClient->mergeCommitsBetween($mainBranch, $releaseBranch);
+        if ($skip = $this->option('skip')) {
+            $mergeCommits = array_slice($mergeCommits, $skip);
+        }
+
+        if ($limit = $this->option('limit')) {
+            $mergeCommits = array_slice($mergeCommits, 0, $limit);
+        }
+
+        collect($mergeCommits)->each(function (string $mergeCommit) {
             try {
                 $prNumber = $this->gitClient->prNumberFromMergeCommit($mergeCommit);
             } catch (GitClientOnlySyncException $e) {

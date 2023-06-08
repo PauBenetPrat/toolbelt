@@ -34,6 +34,7 @@ To use Toolbelt, follow these steps:
    - Use the -S or --skip-api-calls flag if you don't have a Bitbucket API token or want to skip linear history checks. 
    - Use the -O flag to open links in your default browser (it's recommended to have dual monitors for this).
    - Use the --no-fetch flag to skip the initial git fetch origin command.
+   - Use the --skip and --limit flags to skip and limit the number of commits to check.
 
 7. You can pass your bitbucket api token (retrieved from https://bitbucket.org/<workspace>/<project>/admin/access-tokens) dynamically or set it to each project .env at BITBUCKET_API_TOKEN variable.
 
