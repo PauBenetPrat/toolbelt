@@ -1,24 +1,21 @@
 <?php
 
 
-namespace App\Services;
+namespace App\Services\RepositoryClients;
 
-use App\Exceptions\BitbucketClientException;
+use App\Exceptions\RepositoryException;
+use App\Services\GitClient;
+use App\Services\Repository;
 use Illuminate\Support\Facades\Http;
 
-class BitbucketClient
+class BitbucketRepository extends Repository
 {
-
     public ?string $bearer;
 
-    public function __construct(protected GitClient $gitClient)
+    public function __construct(GitClient $gitClient)
     {
         $this->bearer = env('BITBUCKET_API_TOKEN');
-    }
-
-    public function preFetch(string $branch)
-    {
-        exec("git fetch origin $branch");
+        parent::__construct($gitClient);
     }
 
     public function prLink(string $prNumber): string
@@ -27,7 +24,7 @@ class BitbucketClient
     }
 
     /**
-     * @throws BitbucketClientException
+     * @throws RepositoryException
      */
     public function getPRInfo(string $prNumber): array
     {
@@ -36,11 +33,10 @@ class BitbucketClient
             ->json();
 
         if (isset($response['error'])) {
-            throw new BitbucketClientException($response['error']['message']);
+            throw new RepositoryException($response['error']['message']);
         }
 
         $link = preg_match('/(https:\/\/linear\.app\/revo\/issue\/REV-[0-9]+)/', $response['description'], $matches) ? $matches[1] : null;
-        return [$link, $response['title']];
-
+        return [$link, $response['title'], $response['description']];
     }
 }

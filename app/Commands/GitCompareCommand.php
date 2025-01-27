@@ -2,11 +2,14 @@
 
 namespace App\Commands;
 
-use App\Exceptions\BitbucketClientException;
 use App\Exceptions\GitClientOnlySyncException;
-use App\Services\BitbucketClient;
+use App\Exceptions\RepositoryException;
 use App\Services\GitClient;
-use Illuminate\Support\Facades\Http;
+use App\Services\GitClients\AzureGitClient;
+use App\Services\GitClients\BitbucketGitClient;
+use App\Services\Repository;
+use App\Services\RepositoryClients\AzureRepository;
+use App\Services\RepositoryClients\BitbucketRepository;
 use LaravelZero\Framework\Commands\Command;
 
 class GitCompareCommand extends Command
@@ -24,21 +27,31 @@ class GitCompareCommand extends Command
     protected $description = 'Retrieve a list of pull requests between two branches in a Git repository and optionally retrieve additional information from the Bitbucket API, including its linear links.';
 
     private GitClient $gitClient;
-    private BitbucketClient $bitbucketClient;
+    private Repository $repositoryClient;
+    private bool $onAzure;
 
     public function handle()
     {
         $releaseBranch = $this->argument('release-branch-or-tag');
         $mainBranch = $this->argument('main-branch');
+
+        $remoteUrlOutput = exec('git remote get-url origin');
+        $this->onAzure = str_contains($remoteUrlOutput, 'ssh.dev.azure.com');
         try {
-            $this->gitClient = new GitClient();
+            $this->gitClient = $this->onAzure
+                ? app(AzureGitClient::class, ['remoteUrlOutput' => $remoteUrlOutput])
+                : app(BitbucketGitClient::class, ['remoteUrlOutput' => $remoteUrlOutput]);
         } catch (\Exception $e)  {
             $this->error($e->getMessage());
             exit(1);
         }
-        $this->bitbucketClient = new BitbucketClient($this->gitClient);
+        $this->repositoryClient = $this->onAzure ?
+            new AzureRepository($this->gitClient) :
+            new BitbucketRepository($this->gitClient);
 
-        $this->checkForBitbucketBearer();
+        if (!$this->onAzure) {
+            $this->checkForBitbucketBearer();
+        }
 
         $this->preFetchBranches($mainBranch, $releaseBranch);
 
@@ -72,15 +85,15 @@ class GitCompareCommand extends Command
             return;
         }
 
-        if ($this->bitbucketClient->bearer) {
+        if ($this->repositoryClient->bearer) {
             return;
         }
 
         $this->alert("Consider setting your BITBUCKET_API_TOKEN in the .env file.");
 
-        $this->bitbucketClient->bearer = $this->ask('Enter your Bitbucket API token to get linears output or press enter to continue');
-        if ($this->bitbucketClient->bearer) {
-            $this->comment("RUN: echo BITBUCKET_API_TOKEN=\"{$this->bitbucketClient->bearer}\" >> .env");
+        $this->repositoryClient->bearer = $this->ask('Enter your Bitbucket API token to get linears output or press enter to continue');
+        if ($this->repositoryClient->bearer) {
+            $this->comment("RUN: echo BITBUCKET_API_TOKEN=\"{$this->repositoryClient->bearer}\" >> .env");
         } else {
             $this->warn("Bearer not set. Only PR links will be printed; no PR information will be fetched.");
         }
@@ -92,28 +105,30 @@ class GitCompareCommand extends Command
             return;
         }
 
-        $this->info("Getting `{$releaseBranch}` to `{$mainBranch}` diff from https://bitbucket.org:{$this->gitClient->username}/{$this->gitClient->repository}.git");
-        $this->bitbucketClient->preFetch($mainBranch);
-        $this->bitbucketClient->preFetch($releaseBranch);
+        $this->info("Getting `{$releaseBranch}` to `{$mainBranch}` diff from {$this->gitClient->username}/{$this->gitClient->repository}");
+        $this->repositoryClient->preFetch($mainBranch);
+        $this->repositoryClient->preFetch($releaseBranch);
+        $this->repositoryClient->fetch($mainBranch);
+        $this->repositoryClient->fetch($releaseBranch);
     }
 
     protected function getLink(string $prNumber): ?string
     {
-        if ($this->option('skip-api-calls') || !$this->bitbucketClient->bearer) {
-            $link = $this->bitbucketClient->prLink($prNumber);
-            $this->info("BITBUCKET: $link");
+        if ($this->onAzure || $this->option('skip-api-calls') || !$this->repositoryClient->bearer) {
+            $link = $this->repositoryClient->prLink($prNumber);
+            $this->info("Repository: $link");
             return $link;
         }
 
         try {
-            [$linearLink, $prTitle] = $this->bitbucketClient->getPRInfo($prNumber);
-        } catch (BitbucketClientException $e) {
+            [$linearLink, $prTitle, $prDescription] = $this->repositoryClient->getPRInfo($prNumber);
+        } catch (RepositoryException $e) {
             $this->error("Bitbucket API error - {$e->getMessage()}");
             exit(1);
         }
 
         if (!$linearLink) {
-            $link = $this->bitbucketClient->prLink($prNumber);
+            $link = $this->repositoryClient->prLink($prNumber);
             $this->warn("No Linear found at {$link} - {$prTitle}");
             return $link;
         }
