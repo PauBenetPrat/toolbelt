@@ -68,10 +68,10 @@ class GitCompareCommand extends Command
             try {
                 $prNumber = $this->gitClient->prNumberFromMergeCommit($mergeCommit);
             } catch (GitClientOnlySyncException $e) {
-                $this->info("SYNC PR: {$e->getMessage()}");
+                $this->info("Commit($mergeCommit) SYNC PR: {$e->getMessage()}");
                 return;
             }
-            $link = $this->getLink($prNumber);
+            $link = $this->getLink($prNumber, $mergeCommit);
 
             if ($this->option('open-on-browser')) {
                 exec("open \"$link\"");
@@ -112,28 +112,28 @@ class GitCompareCommand extends Command
         $this->repositoryClient->fetch($releaseBranch);
     }
 
-    protected function getLink(string $prNumber): ?string
+    protected function getLink(string $prNumber, string $commit): ?string
     {
         if ($this->onAzure || $this->option('skip-api-calls') || !$this->repositoryClient->bearer) {
             $link = $this->repositoryClient->prLink($prNumber);
-            $this->info("Repository: $link");
+            $this->info("Commit($commit) Repository: $link");
             return $link;
         }
 
         try {
             [$linearLink, $prTitle, $prDescription] = $this->repositoryClient->getPRInfo($prNumber);
         } catch (RepositoryException $e) {
-            $this->error("Bitbucket API error - {$e->getMessage()}");
+            $this->error("Commit($commit) Bitbucket API error - {$e->getMessage()}");
             exit(1);
         }
 
         if (!$linearLink) {
             $link = $this->repositoryClient->prLink($prNumber);
-            $this->warn("No Linear found at {$link} - {$prTitle}");
+            $this->warn("Commit($commit) No Linear found at {$link} - {$prTitle}");
             return $link;
         }
 
-        $this->info("LINEAR: {$linearLink}");
+        $this->info("Commit($commit) LINEAR: {$linearLink}");
         return $linearLink;
     }
 }

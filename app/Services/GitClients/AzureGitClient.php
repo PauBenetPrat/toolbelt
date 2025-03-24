@@ -15,7 +15,7 @@ class AzureGitClient extends GitClient
     {
         $regex = '/ssh.dev.azure.com:v3\/cegid[:\/](.*)\/(.*)/';
         if (!preg_match($regex, $remoteUrlOutput, $matches)) {
-            throw new \Exception("Failed to extract username and repository from the remote URL: $remoteUrlOutput");
+            throw new \Exception("Failed to extract azure username and repository from the remote URL: $remoteUrlOutput");
         }
 
         parent::__construct($matches[1], $matches[2]);

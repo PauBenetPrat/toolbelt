@@ -19,7 +19,7 @@ class BitbucketGitClient extends GitClient
         $remoteUrlOutput = exec('git remote get-url origin');
         $regex = '/bitbucket.org[:\/](.*)\/(.*).git/';
         if (!preg_match($regex, $remoteUrlOutput, $matches)) {
-            throw new \Exception("Failed to extract username and repository from the remote URL: $remoteUrlOutput");
+            throw new \Exception("Failed to extract bitbucket username and repository from the remote URL: $remoteUrlOutput");
         }
 
         parent::__construct($matches[1], $matches[2]);
